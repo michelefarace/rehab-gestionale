@@ -1,0 +1,18 @@
+{
+  "name": "rehab-gestionale",
+  "version": "1.0.0",
+  "description": "Gestionale appuntamenti, pazienti e contabilita per Studio Rehab",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "cookie-session": "^2.1.0",
+    "express": "^4.19.2"
+  }
+}
