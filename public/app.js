@@ -233,7 +233,7 @@ function waDigits(tel) {
 }
 function promemoriaMsg(a) {
   const p = PAZIENTI.find(x => x.id === a.paziente_id);
-  const nome = p ? (p.nome || '') : '';
+  const nome = a.p_nome || (p ? (p.nome || '') : '');
   const link = location.origin + '/conferma/' + a.token;
   const studio = IMPOST.studio_nome || 'Rehab';
   return `Ciao ${nome}, ti ricordo l'appuntamento presso ${studio} di ${fmtData(a.data)} alle ${a.ora_inizio}.\nPuoi confermare qui: ${link}\nGrazie!`;
