@@ -70,6 +70,25 @@ function openModal(html, wide = false) {
 function closeModal() { $('#modalRoot').innerHTML = ''; }
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
+/* Conferma interna (sostituisce window.confirm, affidabile anche su mobile) */
+function askConfirm(message, { okText = 'Elimina', cancelText = 'Annulla', danger = true } = {}) {
+  return new Promise((resolve) => {
+    const bg = el(`<div class="modal-bg confirm-bg"><div class="modal" style="max-width:400px">
+      <h3>Conferma</h3>
+      <p style="color:var(--ink-soft);margin:-2px 0 4px">${esc(message)}</p>
+      <div class="modal-actions">
+        <button class="btn ghost" data-no>${esc(cancelText)}</button>
+        <button class="btn ${danger ? 'danger' : ''}" data-yes>${esc(okText)}</button>
+      </div></div></div>`);
+    const done = (v) => { bg.remove(); resolve(v); };
+    bg.addEventListener('mousedown', (e) => { if (e.target === bg) done(false); });
+    bg.querySelector('[data-no]').onclick = () => done(false);
+    bg.querySelector('[data-yes]').onclick = () => done(true);
+    $('#modalRoot').appendChild(bg);
+    setTimeout(() => bg.querySelector('[data-yes]').focus(), 30);
+  });
+}
+
 /* ============ Auth ============ */
 async function checkAuth() {
   try { const r = await api('/me'); return r.auth; } catch { return false; }
@@ -322,7 +341,7 @@ function apptModal(a = {}) {
     closeModal(); toast('Appuntamento salvato'); navigate(currentView);
   };
   if (isEdit) $('#aDel').onclick = async () => {
-    if (!confirm('Eliminare questo appuntamento?')) return;
+    if (!await askConfirm('Vuoi eliminare questo appuntamento?')) return;
     await api('/appuntamenti/' + a.id, { method: 'DELETE' }); closeModal(); toast('Eliminato'); navigate(currentView);
   };
 }
@@ -380,7 +399,7 @@ function pazModal(p = {}) {
     await loadBase(); closeModal(); toast('Paziente salvato'); navigate(currentView);
   };
   if (isEdit) $('#pDel').onclick = async () => {
-    if (!confirm('Eliminare il paziente? Gli appuntamenti resteranno senza paziente associato.')) return;
+    if (!await askConfirm('Eliminare il paziente? Gli appuntamenti resteranno senza paziente associato.')) return;
     await api('/pazienti/' + p.id, { method: 'DELETE' }); await loadBase(); closeModal(); toast('Eliminato'); navigate(currentView);
   };
 }
@@ -482,7 +501,7 @@ function movModal(mv = {}) {
     closeModal(); toast('Movimento salvato'); navigate(currentView);
   };
   if (isEdit) $('#mDel').onclick = async () => {
-    if (!confirm('Eliminare il movimento?')) return;
+    if (!await askConfirm('Eliminare questo movimento?')) return;
     await api('/movimenti/' + mv.id, { method: 'DELETE' }); closeModal(); toast('Eliminato'); navigate(currentView);
   };
 }
@@ -500,7 +519,7 @@ async function listinoModal() {
   const bind = () => {
     $('#lBody').querySelectorAll('[data-edit]').forEach(x => x.onclick = () => listinoEdit(LISTINO.find(l => l.id == x.dataset.edit)));
     $('#lBody').querySelectorAll('[data-del]').forEach(x => x.onclick = async () => {
-      if (!confirm('Eliminare questa voce di listino?')) return;
+      if (!await askConfirm('Eliminare questa voce di listino?')) return;
       await api('/listino/' + x.dataset.del, { method: 'DELETE' }); await loadBase(); listinoModal();
     });
   };
@@ -542,7 +561,7 @@ views.ricevute = async () => {
     <td class="row-actions" style="justify-content:flex-end"><button class="btn ghost sm" data-print="${r.id}">Stampa</button><button class="btn ghost sm" data-del="${r.id}">🗑</button></td></tr>`).join('');
   b.querySelectorAll('[data-print]').forEach(x => x.onclick = () => stampaRicevuta(list.find(r => r.id == x.dataset.print)));
   b.querySelectorAll('[data-del]').forEach(x => x.onclick = async () => {
-    if (!confirm('Eliminare la ricevuta? (il movimento contabile collegato resta)')) return;
+    if (!await askConfirm('Eliminare la ricevuta? (il movimento contabile collegato resta)')) return;
     await api('/ricevute/' + x.dataset.del, { method: 'DELETE' }); toast('Eliminata'); views.ricevute();
   });
 };

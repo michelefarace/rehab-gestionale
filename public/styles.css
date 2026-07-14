@@ -193,6 +193,8 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: none; } }
 
+.confirm-bg { z-index: 100; align-items: center !important; padding: 20px; }
+.confirm-bg .modal { border-radius: var(--radius-lg) !important; animation: pop .16s ease !important; max-height: none !important; }
 .empty { text-align: center; color: var(--muted); padding: 42px 10px; }
 .chart-box { position: relative; height: 264px; }
 
