@@ -5,6 +5,9 @@
  */
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+
+function newToken() { return crypto.randomBytes(16).toString('hex'); }
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -45,6 +48,13 @@ try {
   ];
 }
 
+// Migrazione: assicura token e stato conferma su ogni appuntamento esistente
+let _migrated = false;
+for (const a of data.appuntamenti) {
+  if (!a.token) { a.token = newToken(); _migrated = true; }
+  if (a.conferma === undefined) { a.conferma = ''; _migrated = true; }
+}
+
 let saveTimer = null;
 function persist() {
   const tmp = FILE + '.tmp';
@@ -62,4 +72,6 @@ function nowLocal() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
-module.exports = { data, save, nowLocal };
+if (_migrated) { try { persist(); } catch (e) {} }
+
+module.exports = { data, save, nowLocal, newToken };

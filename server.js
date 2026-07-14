@@ -1,7 +1,7 @@
 const path = require('path');
 const express = require('express');
 const cookieSession = require('cookie-session');
-const { data, save, nowLocal } = require('./db');
+const { data, save, nowLocal, newToken } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -133,7 +133,7 @@ api.post('/appuntamenti', (req, res) => {
   const a = {
     id: nextId('appuntamenti'), paziente_id: int(b.paziente_id) || null, data: b.data, ora_inizio: b.ora_inizio,
     ora_fine: b.ora_fine || '', tipo_seduta: b.tipo_seduta || '', prezzo: num(b.prezzo), stato: b.stato || 'programmato',
-    pagato: b.pagato ? 1 : 0, note: b.note || '', creato_il: nowLocal()
+    pagato: b.pagato ? 1 : 0, note: b.note || '', conferma: '', token: newToken(), creato_il: nowLocal()
   };
   data.appuntamenti.push(a); save(); res.json({ id: a.id });
 });
@@ -271,5 +271,104 @@ api.get('/report', (req, res) => {
 });
 
 app.use('/api', api);
+
+/* ===== Pagina pubblica di conferma appuntamento (paziente, senza login) ===== */
+const GIORNI = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+const MESI_IT = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+function dataEstesa(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return `${GIORNI[d.getDay()]} ${d.getDate()} ${MESI_IT[d.getMonth()]} ${d.getFullYear()}`;
+}
+function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+const LOGO_SVG = '<svg viewBox="0 0 32 32" fill="none"><path d="M4 19h4.2l2.3-6.4a1 1 0 0 1 1.9.05L16 22l2.4-11.5a1 1 0 0 1 1.95.06L22.3 19H28" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function confirmPage({ a, p, s, notfound }) {
+  const studio = (s && s.studio_nome) || 'Rehab';
+  const sub = (s && s.studio_sottotitolo) || 'Studio di Chinesiologia';
+  const indir = (s && s.studio_indirizzo) || '';
+  const head = `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#2f8fb3"><title>Conferma appuntamento — ${escapeHtml(studio)}</title>
+    <style>
+      *{box-sizing:border-box} body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+        background:radial-gradient(1000px 500px at 50% -10%,#dcecf4,#f6fafc 55%);color:#1f2d3a;
+        min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:22px}
+      .card{background:#fff;border:1px solid #e7eef4;border-radius:22px;box-shadow:0 20px 60px rgba(31,45,58,.14);
+        width:100%;max-width:420px;padding:30px 26px;text-align:center}
+      .logo{width:60px;height:60px;border-radius:18px;margin:0 auto 14px;background:linear-gradient(135deg,#3aa0c4,#26788f);
+        display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px rgba(47,143,179,.35)}
+      .logo svg{width:38px;height:38px}
+      h1{font-size:21px;margin:0 0 2px} .sub{color:#7d8ea0;font-size:13px;margin:0 0 20px}
+      .box{background:#f1f8fb;border:1px solid #e6f3f8;border-radius:14px;padding:16px 18px;margin:8px 0 20px;text-align:left}
+      .box .when{font-size:18px;font-weight:700;color:#26788f} .box .meta{color:#47586a;font-size:14px;margin-top:4px}
+      .ask{font-size:15px;color:#47586a;margin-bottom:16px}
+      .btns{display:flex;flex-direction:column;gap:10px}
+      button{border:none;border-radius:12px;padding:14px;font-size:15.5px;font-weight:650;font-family:inherit;cursor:pointer}
+      .ok{background:linear-gradient(135deg,#3aa0c4,#26788f);color:#fff;box-shadow:0 6px 16px rgba(47,143,179,.28)}
+      .no{background:#fff;color:#c9614f;border:1px solid #f2d6d1}
+      .result{font-size:16px;font-weight:600;padding:18px;border-radius:14px;margin-top:6px}
+      .result.green{background:#e4f5ee;color:#2a7d5f} .result.red{background:#fcecea;color:#c9614f}
+      .foot{color:#9fb0be;font-size:12px;margin-top:18px}
+    </style></head><body><div class="card">
+      <div class="logo">${LOGO_SVG}</div>
+      <h1>${escapeHtml(studio)}</h1><p class="sub">${escapeHtml(sub)}</p>`;
+  const foot = `<div class="foot">${escapeHtml(indir)}</div></div></body></html>`;
+
+  if (notfound) {
+    return head + `<div class="result red">Link non valido o scaduto.</div>` + foot;
+  }
+  const nome = p ? escapeHtml(p.nome || '') : '';
+  const already = a.conferma === 'confermato' ? 'green' : (a.conferma === 'disdetto' ? 'red' : '');
+  const info = `<div class="box"><div class="when">${dataEstesa(a.data)}</div>
+      <div class="meta">Ore ${escapeHtml(a.ora_inizio)}${a.tipo_seduta ? ' · ' + escapeHtml(a.tipo_seduta) : ''}</div></div>`;
+  let body;
+  if (a.conferma === 'confermato') {
+    body = info + `<div class="result green" id="res">✓ Appuntamento confermato. Grazie${nome ? ', ' + nome : ''}!</div>
+      <div class="btns" style="margin-top:14px"><button class="no" onclick="setStato('disdetto')">Non posso più venire</button></div>`;
+  } else if (a.conferma === 'disdetto') {
+    body = info + `<div class="result red" id="res">Hai segnalato che non puoi venire.</div>
+      <div class="btns" style="margin-top:14px"><button class="ok" onclick="setStato('confermato')">In realtà confermo</button></div>`;
+  } else {
+    body = `<p class="ask">Ciao${nome ? ' ' + nome : ''}, confermi questo appuntamento?</p>${info}
+      <div class="btns" id="btns">
+        <button class="ok" onclick="setStato('confermato')">✓ Confermo</button>
+        <button class="no" onclick="setStato('disdetto')">Non posso venire</button>
+      </div><div id="res"></div>`;
+  }
+  const script = `<script>
+    async function setStato(stato){
+      try{
+        const r = await fetch(location.pathname,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stato})});
+        if(!r.ok) throw 0;
+        const el = document.getElementById('res'); const btns = document.getElementById('btns'); if(btns) btns.style.display='none';
+        el.className = 'result ' + (stato==='confermato'?'green':'red');
+        el.textContent = stato==='confermato' ? '✓ Appuntamento confermato. Grazie!' : 'Grazie per avercelo comunicato.';
+        setTimeout(()=>location.reload(), 1400);
+      }catch(e){ alert('Si è verificato un errore, riprova.'); }
+    }
+  </script>`;
+  return head + body + script + foot;
+}
+
+function findByToken(token) { return data.appuntamenti.find(a => a.token === token); }
+
+app.get('/conferma/:token', (req, res) => {
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  const a = findByToken(req.params.token);
+  if (!a) return res.status(404).send(confirmPage({ notfound: true, s: data.impostazioni }));
+  const p = a.paziente_id ? data.pazienti.find(x => x.id === a.paziente_id) : null;
+  res.send(confirmPage({ a, p, s: data.impostazioni }));
+});
+
+app.post('/conferma/:token', (req, res) => {
+  const a = findByToken(req.params.token);
+  if (!a) return res.status(404).json({ error: 'Non trovato' });
+  const stato = (req.body && req.body.stato) === 'disdetto' ? 'disdetto' : 'confermato';
+  a.conferma = stato;
+  if (stato === 'disdetto') a.stato = 'annullato';
+  save();
+  res.json({ ok: true, stato });
+});
 
 app.listen(PORT, () => console.log(`Rehab gestionale in ascolto sulla porta ${PORT}`));
