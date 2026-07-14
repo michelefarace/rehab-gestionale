@@ -675,6 +675,7 @@ views.report = async () => {
 views.impostazioni = async () => {
   const m = $('#main');
   const s = await api('/impostazioni');
+  const calUrl = s.calendar_token ? location.origin + '/calendar/' + s.calendar_token + '/rehab.ics' : '';
   const f = (k, lbl) => `<label class="field"><span>${lbl}</span><input id="s_${k}" value="${esc(s[k] || '')}"></label>`;
   m.innerHTML = `<div class="topbar"><h2>Impostazioni</h2></div>
     <div class="card" style="max-width:640px">
@@ -688,12 +689,32 @@ views.impostazioni = async () => {
       ${f('studio_indirizzo', 'Indirizzo')}
       <label class="field"><span>Nota a piè di ricevuta</span><textarea id="s_ricevuta_note" rows="2">${esc(s.ricevuta_note || '')}</textarea></label>
       <div class="modal-actions"><button class="btn" id="sSave">Salva impostazioni</button></div>
+    </div>
+
+    <div class="card" style="max-width:640px;margin-top:16px">
+      <h3>Sincronizza con Google Calendar</h3>
+      <p class="muted" style="margin-top:-4px">Aggiungi questo link una volta sola: i tuoi appuntamenti compariranno automaticamente in Google Calendar (e Apple/Outlook) su tutti i dispositivi.</p>
+      <label class="field"><span>Link di abbonamento (privato — non condividerlo)</span>
+        <input id="calUrl" readonly value="${esc(calUrl)}" onclick="this.select()"></label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn ghost sm" id="calCopy">Copia link</button>
+        <a class="btn ghost sm" href="https://calendar.google.com/calendar/u/0/r/settings/addbyurl" target="_blank" rel="noopener">Apri Google Calendar</a>
+      </div>
+      <div style="background:var(--primary-softer);border:1px solid var(--primary-soft);border-radius:12px;padding:13px 15px;font-size:13.5px;color:var(--ink-soft);line-height:1.6">
+        <b>Come fare (da computer):</b> apri Google Calendar → nella colonna a sinistra, accanto a "Altri calendari" tocca <b>+</b> → <b>Da URL</b> → incolla il link → <b>Aggiungi calendario</b>.<br>
+        <span class="muted">Google aggiorna i calendari in abbonamento ogni qualche ora, quindi le modifiche possono comparire con un piccolo ritardo. Gli appuntamenti si creano e si gestiscono qui nell'app.</span>
+      </div>
     </div>`;
   $('#sSave').onclick = async () => {
     const keys = ['studio_nome', 'studio_sottotitolo', 'studio_telefono', 'studio_email', 'studio_partitaiva', 'studio_codicefiscale', 'studio_indirizzo', 'ricevuta_note'];
     const body = {}; keys.forEach(k => body[k] = $('#s_' + k).value);
     await api('/impostazioni', { method: 'PUT', body });
     IMPOST = await api('/impostazioni'); toast('Impostazioni salvate');
+  };
+  $('#calCopy').onclick = async () => {
+    const inp = $('#calUrl'); inp.select();
+    try { await navigator.clipboard.writeText(inp.value); } catch { try { document.execCommand('copy'); } catch (e) {} }
+    toast('Link copiato');
   };
 };
 
