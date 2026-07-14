@@ -54,6 +54,8 @@ for (const a of data.appuntamenti) {
   if (!a.token) { a.token = newToken(); _migrated = true; }
   if (a.conferma === undefined) { a.conferma = ''; _migrated = true; }
 }
+// Token segreto per il feed calendario (iCal) — generato una volta sola
+if (!data.impostazioni.calendar_token) { data.impostazioni.calendar_token = newToken(); _migrated = true; }
 
 let saveTimer = null;
 function persist() {

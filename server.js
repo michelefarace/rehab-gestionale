@@ -371,4 +371,73 @@ app.post('/conferma/:token', (req, res) => {
   res.json({ ok: true, stato });
 });
 
+/* ===== Feed calendario iCal (abbonamento Google Calendar / Apple / Outlook) ===== */
+function icsEsc(s) { return String(s ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n'); }
+function pad2(n) { return String(n).padStart(2, '0'); }
+function icsLocal(dateIso, hhmm) {
+  const [Y, M, D] = dateIso.split('-');
+  const [h, m] = (hhmm || '00:00').split(':');
+  return `${Y}${M}${D}T${pad2(h)}${pad2(m)}00`;
+}
+function addMinutes(hhmm, mins) {
+  const [h, m] = (hhmm || '00:00').split(':').map(Number);
+  let tot = h * 60 + m + mins;
+  tot = ((tot % 1440) + 1440) % 1440;
+  return `${pad2(Math.floor(tot / 60))}:${pad2(tot % 60)}`;
+}
+function durataFor(a) {
+  if (a.ora_fine) return null; // usa ora_fine
+  const l = data.listino.find(x => x.nome === a.tipo_seduta);
+  return (l && l.durata_min) ? l.durata_min : 60;
+}
+const VTIMEZONE = [
+  'BEGIN:VTIMEZONE', 'TZID:Europe/Rome',
+  'BEGIN:DAYLIGHT', 'TZOFFSETFROM:+0100', 'TZOFFSETTO:+0200', 'TZNAME:CEST',
+  'DTSTART:19700329T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU', 'END:DAYLIGHT',
+  'BEGIN:STANDARD', 'TZOFFSETFROM:+0200', 'TZOFFSETTO:+0100', 'TZNAME:CET',
+  'DTSTART:19701025T030000', 'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU', 'END:STANDARD',
+  'END:VTIMEZONE'
+];
+
+app.get('/calendar/:token/rehab.ics', (req, res) => {
+  if (req.params.token !== data.impostazioni.calendar_token) return res.status(404).send('Not found');
+  const s = data.impostazioni;
+  const now = new Date();
+  const dtstamp = `${now.getUTCFullYear()}${pad2(now.getUTCMonth() + 1)}${pad2(now.getUTCDate())}T${pad2(now.getUTCHours())}${pad2(now.getUTCMinutes())}${pad2(now.getUTCSeconds())}Z`;
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Rehab//Gestionale//IT', 'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH', `X-WR-CALNAME:${icsEsc((s.studio_nome || 'Rehab') + ' — Appuntamenti')}`,
+    'X-WR-TIMEZONE:Europe/Rome', 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H',
+    ...VTIMEZONE
+  ];
+  for (const a of data.appuntamenti) {
+    if (!a.data || !a.ora_inizio) continue;
+    const p = a.paziente_id ? data.pazienti.find(x => x.id === a.paziente_id) : null;
+    const fine = a.ora_fine || addMinutes(a.ora_inizio, durataFor(a) || 60);
+    const titolo = (p ? `${p.cognome} ${p.nome}` : 'Appuntamento') + (a.tipo_seduta ? ` — ${a.tipo_seduta}` : '');
+    const descr = [
+      a.tipo_seduta ? `Tipo: ${a.tipo_seduta}` : '',
+      p && p.telefono ? `Tel: ${p.telefono}` : '',
+      a.conferma === 'confermato' ? 'Stato: confermato dal paziente' : (a.conferma === 'disdetto' ? 'Stato: disdetto' : ''),
+      a.note ? `Note: ${a.note}` : ''
+    ].filter(Boolean).join('\n');
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:appt-${a.id}@rehab-gestionale`,
+      `DTSTAMP:${dtstamp}`,
+      `DTSTART;TZID=Europe/Rome:${icsLocal(a.data, a.ora_inizio)}`,
+      `DTEND;TZID=Europe/Rome:${icsLocal(a.data, fine)}`,
+      `SUMMARY:${icsEsc(titolo)}`,
+      `STATUS:${a.stato === 'annullato' ? 'CANCELLED' : 'CONFIRMED'}`
+    );
+    if (descr) lines.push(`DESCRIPTION:${icsEsc(descr)}`);
+    if (s.studio_indirizzo) lines.push(`LOCATION:${icsEsc(s.studio_indirizzo)}`);
+    lines.push('END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  res.set('Content-Type', 'text/calendar; charset=utf-8');
+  res.set('Content-Disposition', 'inline; filename="rehab.ics"');
+  res.send(lines.join('\r\n'));
+});
+
 app.listen(PORT, () => console.log(`Rehab gestionale in ascolto sulla porta ${PORT}`));
