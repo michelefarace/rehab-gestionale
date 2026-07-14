@@ -18,6 +18,28 @@ function fmtGiorno(iso) {
   return `${g} ${fmtData(iso)}`;
 }
 
+/* ============ Icone SVG ============ */
+const _sv = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const ICONS = {
+  dashboard: _sv('<rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/>'),
+  agenda: _sv('<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M8 14h3"/>'),
+  pazienti: _sv('<circle cx="9" cy="8" r="3.1"/><path d="M3.4 20a5.6 5.6 0 0 1 11.2 0"/><path d="M16.2 5.3a3.1 3.1 0 0 1 0 5.9M21 20a5.6 5.6 0 0 0-4-5.4"/>'),
+  contabilita: _sv('<rect x="2.5" y="5.5" width="19" height="14" rx="2.6"/><path d="M2.5 10h19"/><circle cx="17" cy="14.7" r="1.3"/>'),
+  ricevute: _sv('<path d="M6 2.5h12v19l-3-1.8-3 1.8-3-1.8-3 1.8z"/><path d="M9 8h6M9 12h6"/>'),
+  report: _sv('<path d="M3 21h18"/><rect x="5" y="10.5" width="3.4" height="7.5" rx="1"/><rect x="10.3" y="6.5" width="3.4" height="11.5" rx="1"/><rect x="15.6" y="13" width="3.4" height="5" rx="1"/>'),
+  impostazioni: _sv('<circle cx="12" cy="12" r="3.1"/><path d="M12 2.2v2.6M12 19.2v2.6M2.2 12h2.6M19.2 12h2.6M5 5l1.9 1.9M17.1 17.1 19 19M19 5l-1.9 1.9M6.9 17.1 5 19"/>'),
+  esci: _sv('<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h11"/>'),
+  more: _sv('<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>')
+};
+const LOGO_SVG = '<svg viewBox="0 0 32 32" fill="none" aria-label="Rehab"><path d="M4 19h4.2l2.3-6.4a1 1 0 0 1 1.9.05L16 22l2.4-11.5a1 1 0 0 1 1.95.06L22.3 19H28" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const VIEW_TITLES = { dashboard: 'Dashboard', agenda: 'Agenda', pazienti: 'Pazienti', contabilita: 'Contabilità', ricevute: 'Ricevute', report: 'Report', impostazioni: 'Impostazioni' };
+const BOTTOM_PRIMARY = ['dashboard', 'agenda', 'pazienti', 'contabilita'];
+function injectSvgAssets() {
+  document.querySelectorAll('[data-icon]').forEach(e => { const n = e.getAttribute('data-icon'); if (ICONS[n]) e.innerHTML = ICONS[n]; });
+  document.querySelectorAll('[data-logo]').forEach(e => { e.innerHTML = LOGO_SVG; });
+}
+injectSvgAssets();
+
 async function api(path, opts = {}) {
   const res = await fetch('/api' + path, {
     headers: { 'Content-Type': 'application/json' },
@@ -73,11 +95,41 @@ let currentView = 'dashboard';
 function navigate(view) {
   currentView = view;
   $('#nav').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  const mt = $('#mTitle'); if (mt) mt.textContent = VIEW_TITLES[view] || 'Rehab';
+  $('#bottomnav').querySelectorAll('button').forEach(b => {
+    const isMore = b.dataset.nav === 'more';
+    b.classList.toggle('active', isMore ? !BOTTOM_PRIMARY.includes(view) : b.dataset.view === view);
+  });
+  window.scrollTo({ top: 0 });
   (views[view] || views.dashboard)();
 }
 $('#nav').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-view]'); if (b) navigate(b.dataset.view);
 });
+$('#bottomnav').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.nav === 'more') openMoreSheet(); else if (b.dataset.view) navigate(b.dataset.view);
+});
+
+/* Bottom sheet "Altro" (mobile) */
+function openMoreSheet() {
+  const items = [
+    { view: 'ricevute', label: 'Ricevute', icon: 'ricevute' },
+    { view: 'report', label: 'Report', icon: 'report' },
+    { view: 'impostazioni', label: 'Impostazioni', icon: 'impostazioni' }
+  ];
+  const rows = items.map(i => `<button data-go="${i.view}"><span class="ic">${ICONS[i.icon]}</span>${i.label}</button>`).join('');
+  const bg = el(`<div class="sheet-bg"><div class="sheet"><div class="handle"></div>${rows}
+    <button class="danger" data-logout><span class="ic">${ICONS.esci}</span>Esci</button></div></div>`);
+  bg.addEventListener('click', (e) => {
+    if (e.target === bg) return bg.remove();
+    const go = e.target.closest('[data-go]');
+    if (go) { bg.remove(); navigate(go.dataset.go); return; }
+    if (e.target.closest('[data-logout]')) { bg.remove(); doLogout(); }
+  });
+  $('#modalRoot').appendChild(bg);
+}
+async function doLogout() { await api('/logout', { method: 'POST' }); showLogin(); }
 
 /* cache */
 let PAZIENTI = [], LISTINO = [], IMPOST = {};
@@ -491,8 +543,11 @@ function stampaRicevuta(r) {
   w.document.write(`<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><title>Ricevuta ${r.numero}/${r.anno}</title>
   <style>
     body{font-family:Georgia,'Times New Roman',serif;color:#24313f;max-width:720px;margin:40px auto;padding:0 30px;}
-    .head{display:flex;justify-content:space-between;border-bottom:2px solid #4f9cc4;padding-bottom:14px;margin-bottom:26px;}
-    .studio b{font-size:22px;color:#3a7fa3;} .studio small{color:#6b7c8f;display:block;}
+    .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #2f8fb3;padding-bottom:16px;margin-bottom:26px;}
+    .brandrow{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
+    .logo-tile{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#3aa0c4,#26788f);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .logo-tile svg{width:30px;height:30px;}
+    .studio b{font-size:22px;color:#26788f;letter-spacing:-0.02em;} .studio small{color:#6b7c8f;display:block;line-height:1.5;}
     .doc-title{text-align:right;} .doc-title h1{font-size:20px;margin:0;} .doc-title .num{font-size:15px;color:#6b7c8f;}
     .row{display:flex;justify-content:space-between;margin:6px 0;}
     .box{border:1px solid #e4ebf2;border-radius:10px;padding:14px 18px;margin:18px 0;}
@@ -505,7 +560,9 @@ function stampaRicevuta(r) {
     @media print{body{margin:0;padding:20px;} .noprint{display:none;}}
   </style></head><body>
     <div class="head">
-      <div class="studio"><b>${esc(s.studio_nome || 'Rehab')}</b><small>${esc(s.studio_sottotitolo || '')}</small>
+      <div class="studio">
+        <div class="brandrow"><div class="logo-tile">${LOGO_SVG}</div><b>${esc(s.studio_nome || 'Rehab')}</b></div>
+        <small>${esc(s.studio_sottotitolo || '')}</small>
         <small>${esc(s.studio_indirizzo || '')}</small>
         ${s.studio_telefono ? `<small>Tel. ${esc(s.studio_telefono)}</small>` : ''}
         ${s.studio_partitaiva ? `<small>P.IVA ${esc(s.studio_partitaiva)}</small>` : ''}
@@ -524,7 +581,7 @@ function stampaRicevuta(r) {
     ${r.metodo ? `<div class="row" style="justify-content:flex-end;color:#6b7c8f">Pagamento: ${esc(r.metodo)}</div>` : ''}
     <div class="firma">Firma _______________________</div>
     <div class="note">${esc(s.ricevuta_note || '')}</div>
-    <div class="noprint" style="text-align:center;margin-top:30px"><button onclick="window.print()" style="padding:10px 22px;font-size:15px;background:#4f9cc4;color:#fff;border:none;border-radius:8px;cursor:pointer">Stampa / Salva PDF</button></div>
+    <div class="noprint" style="text-align:center;margin-top:30px"><button onclick="window.print()" style="padding:10px 22px;font-size:15px;background:#2f8fb3;color:#fff;border:none;border-radius:8px;cursor:pointer">Stampa / Salva PDF</button></div>
   </body></html>`);
   w.document.close();
 }
@@ -562,19 +619,19 @@ views.report = async () => {
   chartRefs.push(new Chart($('#chMesi'), {
     type: 'bar',
     data: { labels: mesiLabel, datasets: [
-      { label: 'Entrate', data: entrateArr, backgroundColor: '#4caf87', borderRadius: 5 },
-      { label: 'Uscite', data: usciteArr, backgroundColor: '#e07a6b', borderRadius: 5 }] },
+      { label: 'Entrate', data: entrateArr, backgroundColor: '#34a780', borderRadius: 6 },
+      { label: 'Uscite', data: usciteArr, backgroundColor: '#e07567', borderRadius: 6 }] },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ...grid }, x: grid } }
   }));
   chartRefs.push(new Chart($('#chSedute'), {
     type: 'line',
-    data: { labels: mesiLabel, datasets: [{ label: 'Sedute', data: seduteArr, borderColor: '#4f9cc4', backgroundColor: 'rgba(79,156,196,.15)', fill: true, tension: .3 }] },
+    data: { labels: mesiLabel, datasets: [{ label: 'Sedute', data: seduteArr, borderColor: '#2f8fb3', backgroundColor: 'rgba(47,143,179,.15)', fill: true, tension: .35, pointBackgroundColor: '#2f8fb3' }] },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ...grid }, x: grid } }
   }));
   const catUscite = d.perCategoria.filter(x => x.tipo === 'uscita');
   chartRefs.push(new Chart($('#chCat'), {
     type: 'doughnut',
-    data: { labels: catUscite.map(x => x.categoria || 'Altro'), datasets: [{ data: catUscite.map(x => x.totale), backgroundColor: ['#e07a6b', '#e0a95e', '#4f9cc4', '#4caf87', '#9b8cc4', '#6b7c8f', '#c47ca0'] }] },
+    data: { labels: catUscite.map(x => x.categoria || 'Altro'), datasets: [{ data: catUscite.map(x => x.totale), backgroundColor: ['#e07567', '#dda14f', '#2f8fb3', '#34a780', '#8a86cf', '#7d8ea0', '#c47ca0'] }] },
     options: { responsive: true, maintainAspectRatio: false }
   }));
 };

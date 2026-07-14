@@ -2,10 +2,13 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#4f9cc4">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2f8fb3">
   <title>Rehab — Gestionale</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f9cc4'/><text x='50' y='68' font-size='58' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>R</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%232f8fb3'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>R</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -13,39 +16,56 @@
   <!-- LOGIN -->
   <div id="login">
     <form class="login-card" id="loginForm">
-      <div class="brand-logo">R</div>
+      <div class="brand-logo" data-logo></div>
       <h1>Rehab</h1>
       <p>Gestionale Studio di Chinesiologia</p>
       <label class="field" style="text-align:left">
         <span>Password</span>
         <input type="password" id="loginPassword" autocomplete="current-password" required>
       </label>
-      <div id="loginError" class="muted" style="color:var(--red);font-size:13px;margin-bottom:10px;"></div>
-      <button class="btn" type="submit" style="width:100%">Entra</button>
+      <div id="loginError" class="login-error"></div>
+      <button class="btn btn-block" type="submit">Entra</button>
     </form>
+    <div class="login-foot">Via Provinciale 225, Gugnano</div>
   </div>
 
   <!-- APP -->
   <div id="app" class="hidden">
+    <!-- Barra superiore (mobile) -->
+    <header class="mtopbar">
+      <div class="mbrand"><div class="mini" data-logo></div><span id="mTitle">Dashboard</span></div>
+    </header>
+
+    <!-- Sidebar (desktop) -->
     <aside class="sidebar">
       <div class="brand">
-        <div class="mini">R</div>
+        <div class="mini" data-logo></div>
         <div><b>Rehab</b><small>Chinesiologia</small></div>
       </div>
       <nav class="nav" id="nav">
-        <button data-view="dashboard" class="active"><span class="ic">■</span><span class="lbl">Dashboard</span></button>
-        <button data-view="agenda"><span class="ic">▤</span><span class="lbl">Agenda</span></button>
-        <button data-view="pazienti"><span class="ic">☺</span><span class="lbl">Pazienti</span></button>
-        <button data-view="contabilita"><span class="ic">€</span><span class="lbl">Contabilità</span></button>
-        <button data-view="ricevute"><span class="ic">⎙</span><span class="lbl">Ricevute</span></button>
-        <button data-view="report"><span class="ic">▦</span><span class="lbl">Report</span></button>
-        <button data-view="impostazioni"><span class="ic">⚙</span><span class="lbl">Impostazioni</span></button>
+        <button data-view="dashboard" class="active"><span class="ic" data-icon="dashboard"></span><span class="lbl">Dashboard</span></button>
+        <button data-view="agenda"><span class="ic" data-icon="agenda"></span><span class="lbl">Agenda</span></button>
+        <button data-view="pazienti"><span class="ic" data-icon="pazienti"></span><span class="lbl">Pazienti</span></button>
+        <button data-view="contabilita"><span class="ic" data-icon="contabilita"></span><span class="lbl">Contabilità</span></button>
+        <button data-view="ricevute"><span class="ic" data-icon="ricevute"></span><span class="lbl">Ricevute</span></button>
+        <button data-view="report"><span class="ic" data-icon="report"></span><span class="lbl">Report</span></button>
+        <button data-view="impostazioni"><span class="ic" data-icon="impostazioni"></span><span class="lbl">Impostazioni</span></button>
       </nav>
       <div class="foot">
-        <nav class="nav"><button id="logoutBtn"><span class="ic">⏻</span><span class="lbl">Esci</span></button></nav>
+        <nav class="nav"><button id="logoutBtn"><span class="ic" data-icon="esci"></span><span class="lbl">Esci</span></button></nav>
       </div>
     </aside>
+
     <main class="main" id="main"></main>
+
+    <!-- Bottom nav (mobile) -->
+    <nav class="bottomnav" id="bottomnav">
+      <button data-view="dashboard" class="active"><span class="ic" data-icon="dashboard"></span><span>Home</span></button>
+      <button data-view="agenda"><span class="ic" data-icon="agenda"></span><span>Agenda</span></button>
+      <button data-view="pazienti"><span class="ic" data-icon="pazienti"></span><span>Pazienti</span></button>
+      <button data-view="contabilita"><span class="ic" data-icon="contabilita"></span><span>Conti</span></button>
+      <button data-nav="more"><span class="ic" data-icon="more"></span><span>Altro</span></button>
+    </nav>
   </div>
 
   <div id="modalRoot"></div>
