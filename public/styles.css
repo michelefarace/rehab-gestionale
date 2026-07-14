@@ -177,6 +177,11 @@ tr:last-child td { border-bottom: none; }
 .appt .who { flex: 1; min-width: 0; }
 .appt .who small { color: var(--muted); }
 .agenda-day { margin-bottom: 10px; font-weight: 700; color: var(--primary-dark); font-size: 15px; }
+.appt-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+a.btn { text-decoration: none; display: inline-flex; align-items: center; }
+.btn.wa { color: #1a9c53; background: #e9f9ef; border-color: #cdeede; }
+.btn.wa:hover { background: #dcf5e6; border-color: #b6e6c8; }
+.appt-remind { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--primary-softer); border: 1px solid var(--primary-soft); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; font-size: 13.5px; color: var(--ink-soft); }
 
 /* ---------- Modal ---------- */
 .modal-bg { position: fixed; inset: 0; background: rgba(31,45,58,.4); backdrop-filter: blur(3px); display: flex; align-items: flex-start; justify-content: center; padding: 44px 16px; z-index: 60; overflow-y: auto; animation: fadein .15s ease; }

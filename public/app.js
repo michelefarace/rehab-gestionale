@@ -221,14 +221,45 @@ views.agenda = async () => {
   body.querySelectorAll('[data-pay]').forEach(b => b.onclick = () => incassaAppt(list.find(x => x.id == b.dataset.pay)));
 };
 
+/* --- Promemoria WhatsApp --- */
+function waDigits(tel) {
+  let d = (tel || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.startsWith('39')) return d;
+  if (d.length === 10 && d[0] === '3') return '39' + d;
+  if (d[0] === '0') return '39' + d.replace(/^0+/, '');
+  return d;
+}
+function promemoriaMsg(a) {
+  const p = PAZIENTI.find(x => x.id === a.paziente_id);
+  const nome = p ? (p.nome || '') : '';
+  const link = location.origin + '/conferma/' + a.token;
+  const studio = IMPOST.studio_nome || 'Rehab';
+  return `Ciao ${nome}, ti ricordo l'appuntamento presso ${studio} di ${fmtData(a.data)} alle ${a.ora_inizio}.\nPuoi confermare qui: ${link}\nGrazie!`;
+}
+function waHref(a) {
+  const d = waDigits(a.p_telefono || (PAZIENTI.find(x => x.id === a.paziente_id) || {}).telefono);
+  const msg = encodeURIComponent(promemoriaMsg(a));
+  return d ? `https://wa.me/${d}?text=${msg}` : `https://wa.me/?text=${msg}`;
+}
+function confermaBadge(a) {
+  if (a.conferma === 'confermato') return '<span class="badge b-ok">Confermato ✓</span>';
+  if (a.conferma === 'disdetto') return '<span class="badge b-ann">Disdetto</span>';
+  return '<span class="badge b-nopay">Da confermare</span>';
+}
+
 function apptRow(a) {
   const pay = a.pagato ? `<span class="badge b-pay">Pagato</span>` :
     (a.stato !== 'annullato' ? `<button class="btn ghost sm" data-pay="${a.id}">Incassa</button>` : '');
+  const attivo = a.paziente_id && a.stato !== 'annullato';
+  const wa = attivo ? `<a class="btn ghost sm wa" target="_blank" rel="noopener" href="${waHref(a)}" title="Invia promemoria WhatsApp">Promemoria</a>` : '';
+  const conf = attivo ? confermaBadge(a) : '';
   return `<div class="appt">
     <div class="time">${esc(a.ora_inizio)}${a.ora_fine ? '<br><small class="muted">' + esc(a.ora_fine) + '</small>' : ''}</div>
     <div class="who"><b>${a.paziente_id ? esc(a.p_cognome + ' ' + a.p_nome) : '<i>Senza paziente</i>'}</b><br>
       <small>${esc(a.tipo_seduta || '')}${a.prezzo ? ' · ' + eur(a.prezzo) : ''}${a.p_telefono ? ' · ' + esc(a.p_telefono) : ''}</small></div>
-    <div style="display:flex;gap:8px;align-items:center">${statoBadge(a)} ${pay}
+    <div class="appt-actions">${statoBadge(a)} ${conf} ${wa} ${pay}
       <button class="btn ghost sm" data-edit="${a.id}">Modifica</button></div>
   </div>`;
 }
@@ -264,6 +295,10 @@ function apptModal(a = {}) {
       </select></label>
     </div>
     <label class="field"><span>Note</span><textarea id="aNote" rows="2">${esc(a.note || '')}</textarea></label>
+    ${isEdit && a.paziente_id ? `<div class="appt-remind">
+      <span>Conferma: ${confermaBadge(a)}</span>
+      <a class="btn ghost sm wa" target="_blank" rel="noopener" href="${waHref(a)}">Invia promemoria WhatsApp</a>
+    </div>` : ''}
     <div class="modal-actions">
       ${isEdit ? '<button class="btn danger" id="aDel" style="margin-right:auto">Elimina</button>' : ''}
       <button class="btn ghost" onclick="closeModal()">Annulla</button>
